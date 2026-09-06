@@ -18,6 +18,7 @@ dependencies:
   - pyarrow=24.0.0
   - numpy=2.4.6
   - pandas=3.0.3
+  - pyvista=0.48.*
   - duckdb=1.5.3
   - rustac=0.9.11
   - dask=2026.3.0
