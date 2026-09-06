@@ -351,3 +351,7 @@ rustac translate -i json ahn5.vpc ahn5.parquet
 
 The generic package does not require this exact preparation route; it can
 inspect local files or URL collections directly.
+
+
+### AI usage
+Code generation supported by GPT 5.6 sol
