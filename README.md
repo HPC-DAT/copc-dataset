@@ -295,7 +295,7 @@ dask.py
 
 `selection.py` contains no I/O. `CopcDataset` contains no open connection or
 point data. `DuckDBCopcReader` knows nothing about how selections were
-partitioned. This allows a later Laserchicken/Laserfarm partitioner to depend
+partitioned. This allows a later partitioner (e.g. in combination with Laserchicken/Laserfarm) to depend
 on the public metadata and selection types without becoming part of the reader.
 
 ## Repository Files
