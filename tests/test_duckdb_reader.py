@@ -20,6 +20,7 @@ from copc_dataset import (
 from copc_dataset.duckdb_reader import (
     _canonicalize_selection,
     _compile_expression,
+    _configure_ca_certificates,
     _connect_pdal,
     _selection_schema,
 )
@@ -161,6 +162,46 @@ class ReaderCompilationTests(unittest.TestCase):
             _connect_pdal(install_extension=False)
 
         connection.close.assert_called_once_with()
+
+    def test_configures_ca_bundle_from_ssl(self) -> None:
+        """Expose Python's CA bundle to the PDAL extension's compiled libcurl."""
+        verify_paths = Mock(cafile=__file__, capath=None)
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch(
+                "copc_dataset.duckdb_reader.ssl.get_default_verify_paths",
+                return_value=verify_paths,
+            ),
+        ):
+            _configure_ca_certificates()
+            self.assertEqual(os.environ["ARBITER_CA_INFO"], __file__)
+
+    def test_keeps_user_ca_configuration(self) -> None:
+        """Leave CA settings untouched when the user has provided one."""
+        with patch.dict(os.environ, {"CURL_CA_INFO": "/custom.pem"}, clear=True):
+            _configure_ca_certificates()
+            self.assertNotIn("ARBITER_CA_INFO", os.environ)
+            self.assertEqual(os.environ["CURL_CA_INFO"], "/custom.pem")
+
+    def test_configures_ca_certificates_before_connecting(self) -> None:
+        """Set the CA variables before DuckDB loads the PDAL extension."""
+        calls = Mock()
+        calls.connect.return_value = Mock()
+
+        with (
+            patch(
+                "copc_dataset.duckdb_reader._configure_ca_certificates",
+                calls.configure,
+            ),
+            patch("copc_dataset.duckdb_reader.duckdb.connect", calls.connect),
+        ):
+            _connect_pdal(install_extension=False)
+
+        # the variables must be in place before the extension's libcurl could read them
+        self.assertEqual(
+            [name for name, _, _ in calls.mock_calls[:2]],
+            ["configure", "connect"],
+        )
 
 
 @unittest.skipUnless(
