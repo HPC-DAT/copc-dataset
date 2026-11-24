@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
+import ssl
 from collections.abc import Iterator
 from typing import Any, Self
 
@@ -216,8 +218,34 @@ class DuckDBCopcReader:
                 arrow_reader.close()
 
 
+_CA_ENVIRONMENT_VARIABLES = (
+    "ARBITER_CA_INFO",
+    "ARBITER_CA_PATH",
+    "CURL_CA_INFO",
+    "CURL_CAINFO",
+    "CURL_CA_PATH",
+)
+
+
+def _configure_ca_certificates() -> None:
+    """
+    Point the PDAL extension's HTTP client at Python's CA certificates.
+
+    The DuckDB PDAL extension bundles its own libcurl, which only looks for CA certificates in its own limited environment variables.
+    Here, we set those variables to point at the system CA bundle that Python's ssl module already knows.
+    """
+    if any(os.environ.get(name) for name in _CA_ENVIRONMENT_VARIABLES):
+        return
+    paths = ssl.get_default_verify_paths()
+    if paths.cafile and os.path.isfile(paths.cafile):
+        os.environ["ARBITER_CA_INFO"] = paths.cafile
+    elif paths.capath and os.path.isdir(paths.capath):
+        os.environ["ARBITER_CA_PATH"] = paths.capath
+
+
 def _connect_pdal(*, install_extension: bool) -> duckdb.DuckDBPyConnection:
     """Create an in-memory DuckDB connection with its PDAL extension loaded."""
+    _configure_ca_certificates()
     connection = duckdb.connect(database=":memory:")
     try:
         if install_extension:
